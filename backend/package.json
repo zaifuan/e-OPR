@@ -1,0 +1,33 @@
+{
+  "name": "opr-backend",
+  "version": "1.0.0",
+  "description": "Backend Sistem OPR - SABK Maahad Al-Khair Lil Banat",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "migrate": "node src/db/migrate.js",
+    "create-admin": "node scripts/create-admin.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "connect-pg-simple": "^10.0.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.6.2",
+    "express-session": "^1.19.0",
+    "googleapis": "^176.0.0",
+    "handlebars": "^4.7.9",
+    "helmet": "^8.3.0",
+    "multer": "^2.2.0",
+    "pdf-lib": "^1.17.1",
+    "pg": "^8.23.0",
+    "puppeteer-core": "^25.9.0",
+    "sharp": "^0.35.4"
+  }
+}

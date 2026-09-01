@@ -1,0 +1,15 @@
+.git
+.gitignore
+**/node_modules
+.env
+.env.*
+!.env.example
+backend/public
+frontend/dist
+*.log
+*.zip
+coverage
+backup
+backups
+.DS_Store
+README.md

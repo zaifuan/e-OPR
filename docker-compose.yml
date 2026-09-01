@@ -1,0 +1,42 @@
+services:
+  opr-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: opr-app
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      # Hanya bind ke localhost - akses awam berlaku melalui Cloudflare / reverse
+      # proxy sedia ada pada server, bukan terus ke container ini.
+      - "127.0.0.1:${PORT:-3070}:${PORT:-3070}"
+    volumes:
+      - /data/opr/pdfs:/app/data/pdfs
+      # /app/data/tmp sengaja TIDAK di-bind mount - gambar sementara tidak boleh
+      # berada dalam persistent storage (Bahagian 14 spesifikasi asal).
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.js"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    depends_on:
+      opr-postgres:
+        condition: service_healthy
+
+  opr-postgres:
+    image: postgres:16-alpine
+    container_name: opr-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - /data/opr/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

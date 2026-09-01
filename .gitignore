@@ -1,0 +1,35 @@
+# Rahsia / konfigurasi khusus server - jangan sekali-kali commit
+.env
+.env.*
+!.env.example
+
+# Dependencies (dipasang semula oleh Docker/npm ci di server)
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# Hasil build (dijana semula oleh Docker build)
+frontend/dist/
+backend/public/
+
+# Fail sementara / log
+tmp/
+temp/
+*.log
+coverage/
+.DS_Store
+
+# Pakej/arkib
+*.zip
+
+# Sandaran & data - tidak pernah sepatutnya berada dalam repo/ZIP
+backup/
+backups/
+data/
+*.sql
+*.dump
+
+!backend/src/db/migrations/
+!backend/src/db/migrations/*.sql
+
+generated-pdfs/
