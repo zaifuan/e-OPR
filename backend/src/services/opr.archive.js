@@ -22,10 +22,22 @@ function buildPdfFilename() {
 async function archiveOprRecord({ clean, pdfFilename, driveFileId }) {
   try {
     const { rows } = await pool.query(
-      `INSERT INTO opr_records (program_name, program_date, organizer, prepared_by, pdf_filename, drive_file_id)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO opr_records (program_name, program_date, organizer, prepared_by, pdf_filename, drive_file_id, program_schedule, additional_info,
+                                prepared_by_position, verified_by_position)
+       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9, $10)
        RETURNING id, program_name, program_date, organizer, prepared_by, generated_at`,
-      [clean.program_name, clean.program_date_start, clean.organizer, clean.prepared_by, pdfFilename, driveFileId]
+      [
+        clean.program_name,
+        clean.program_date_start, // Pembaharuan 02: tarikh PALING AWAL bagi tarikh berasingan
+        clean.organizer,
+        clean.prepared_by,
+        pdfFilename,
+        driveFileId,
+        clean.schedule ? JSON.stringify(clean.schedule) : null, // jadual berstruktur (005)
+        clean.additional_info ? JSON.stringify(clean.additional_info) : null, // LAIN-LAIN (NYATAKAN) (006)
+        clean.prepared_by_position || null, // Jawatan (007)
+        clean.verified_by_position || null,
+      ]
     );
     return { ...rows[0], pdfFilename };
   } catch (err) {

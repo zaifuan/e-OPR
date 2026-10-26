@@ -9,11 +9,25 @@ export const LIMITS = {
   improvements: 200,
   prepared_by: 120,
   verified_by: 120,
+  prepared_by_position: 80, // Pembaharuan 04: Jawatan (sepadan backend)
+  verified_by_position: 80,
+  organizer_other: 100, // Nama Anjuran manual (LAIN-LAIN)
 };
 
 // Anjuran kini dropdown wajib - tepat 3 pilihan, sepadan dengan backend
 // (src/constants/opr.js ALLOWED_ORGANIZERS).
-export const ORGANIZER_OPTIONS = ['KURIKULUM', 'HAL EHWAL MURID', 'KOKURIKULUM'];
+// Pembaharuan 01: pilihan keempat LAIN-LAIN membuka input "Nama Anjuran".
+export const OTHER_ORGANIZER = 'LAIN-LAIN';
+export const ORGANIZER_OPTIONS = ['KURIKULUM', 'HAL EHWAL MURID', 'KOKURIKULUM', OTHER_ORGANIZER];
+
+// Pembaharuan 02: Tarikh Berasingan - 2 hingga 5 tarikh (sepadan backend).
+export const MIN_SESSIONS = 2;
+export const MAX_SESSIONS = 5;
+
+// Pembaharuan 03: LAIN-LAIN (NYATAKAN) - sepadan backend (src/constants/opr.js).
+export const MAX_ADDITIONAL_INFO = 3;
+export const ADDITIONAL_INFO_TITLE_MAX = 40;
+export const ADDITIONAL_INFO_CONTENT_MAX = 250;
 
 // Dokumentasi Program kini WAJIB tepat 4 gambar (sebelum ini 1-4).
 export const REQUIRED_IMAGES = 4;

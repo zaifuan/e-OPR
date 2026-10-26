@@ -157,7 +157,7 @@
     font-size: 30pt;
     font-style: italic;
     font-weight: 700;
-    color: var(--theme-accent);
+    color: #FFFFFF; /* Pembaharuan 05: putih solid untuk semua tema (sebelum ini var(--theme-accent)) */
     margin-left: 2.5mm;
   }
   .header-schoolbar {
@@ -229,6 +229,12 @@
   }
   .field-value.name { font-size: 14pt; font-weight: 700; line-height: 1.18; }
   .field-value.body { font-size: 9.6pt; line-height: 1.24; }
+  /* Pembaharuan 03: tajuk maklumat tambahan (teks guru) - balut jika
+     terlalu lebar supaya tidak melimpah ke lajur gambar. */
+  .field-label.extra-title { overflow-wrap: anywhere; }
+  /* Pembaharuan 04: Jawatan di bawah nama tandatangan - sedikit lebih kecil
+     daripada nama (10.5pt), warna & fon sama. Tiada elemen jika kosong. */
+  .field-value.signatory-position { font-size: 9.5pt; line-height: 1.2; margin-top: 0.6mm; overflow-wrap: anywhere; }
 
   .field-row { display: flex; gap: 7mm; flex: 0 0 auto; margin-bottom: 1.8mm; }
 
@@ -243,6 +249,32 @@
      selepas Rumusan tanpa bertindih. */
   .info-column > .field-row:last-child { margin-top: auto; padding-top: 4mm; }
   .field-row .field-block { flex: 1; margin-bottom: 0; }
+
+  /* Pembaharuan 02: jadual kecil Tarikh & Masa (masa berbeza, maks 5 baris).
+     Saiz font sama seperti .field-value.body; warna ikut tema anjuran. */
+  .schedule-table {
+    border-collapse: collapse;
+    font-size: 9.6pt;
+    line-height: 1.2;
+    color: var(--ink);
+  }
+  .schedule-table th {
+    text-align: left;
+    font-size: 8pt;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--theme-dark);
+    background: var(--theme-light);
+    padding: 0.8mm 3mm;
+  }
+  .schedule-table td {
+    padding: 0.7mm 3mm;
+    border-bottom: 0.25mm solid var(--gray);
+    white-space: nowrap;
+  }
+  .schedule-table th:first-child,
+  .schedule-table td:first-child { padding-left: 1.5mm; padding-right: 6mm; }
 
   /* --- Lajur gambar (Bahagian 14/17) --- */
   .photo-column { flex: 36 1 0; min-height: 0; display: flex; flex-direction: column; gap: 3mm; }
@@ -296,11 +328,36 @@
     justify-content: center;
     padding: 2.5mm 9mm;
   }
+  /* ---------- Pembaharuan 05: watermark SAJ.A ----------
+     Diletak dalam ruang putih segi tiga di hujung bawah banner kiri (hasil
+     clip-path .side-banner: bucu (20mm, 286.6mm), (20mm, 297mm), (0, 297mm)).
+     Kedudukan mutlak terhadap halaman (bukan sebahagian aliran layout) -
+     tiada elemen lain berganjak. Diputar -27.5deg supaya selari dengan sisi
+     serong banner. Warna = neutral grayDark template (#8D908B).
+     Pembetulan: diletak sejauh mungkin ke dalam bucu atas segi tiga (jarak
+     kotak 0.6mm dari sisi serong & jalur footer) untuk menjauhi tepi bawah
+     halaman (~2.4mm). 5mm tidak boleh dicapai: pada y <= 292mm segi tiga
+     putih hanya 10.4 x 5.4mm dan memuatkan kotak selari maks ~5.2mm lebar,
+     sedangkan teks memerlukan 8.73mm. */
+  .saja-mark {
+    position: absolute;
+    left: 14.92mm;
+    top: 291.42mm;
+    transform: translate(-50%, -50%) rotate(-27.46deg);
+    font-size: 7.5pt;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    white-space: nowrap;
+    color: var(--gray-dark);
+    pointer-events: none;
+  }
   .footer-slogan { font-size: 11.5pt; font-weight: 800; letter-spacing: 0.16em; }
 </style>
 </head>
 <body>
   <div class="opr-page">
+    <div class="saja-mark">SAJ.A</div>
     <div class="side-banner">
       <div class="side-banner-text">{{organizer}}</div>
     </div>
@@ -331,6 +388,20 @@
             <div class="field-value name">{{programName}}</div>
           </div>
 
+          {{#if scheduleRows}}
+          <!-- Pembaharuan 02: Tarikh Berasingan + Masa Berbeza (2-5 sesi) -->
+          <div class="field-block">
+            <div class="field-label">Tarikh &amp; Masa</div>
+            <table class="schedule-table">
+              <thead><tr><th>Tarikh</th><th>Masa</th></tr></thead>
+              <tbody>
+                {{#each scheduleRows}}
+                <tr><td>{{date}}</td><td>{{time}}</td></tr>
+                {{/each}}
+              </tbody>
+            </table>
+          </div>
+          {{else}}
           <div class="field-row">
             <div class="field-block">
               <div class="field-label">Tarikh</div>
@@ -341,6 +412,7 @@
               <div class="field-value">{{timeFormatted}}</div>
             </div>
           </div>
+          {{/if}}
 
           <div class="field-row">
             <div class="field-block">
@@ -348,7 +420,7 @@
               <div class="field-value">{{location}}</div>
             </div>
             <div class="field-block">
-              <div class="field-label">Kumpulan Sasaran</div>
+              <div class="field-label">Kumpulan Sasaran/<wbr>Penglibatan</div>
               <div class="field-value">{{targetGroup}}</div>
             </div>
           </div>
@@ -388,14 +460,26 @@
           </div>
           {{/if}}
 
+          {{!-- Pembaharuan 03: LAIN-LAIN (NYATAKAN) - setiap set ialah seksyen
+               laporan biasa (tajuk guru sebagai label). Tajuk induk tidak
+               dipaparkan. {{ }} meng-escape HTML; pre-wrap kekalkan baris baru. --}}
+          {{#each additionalInfo}}
+          <div class="field-block">
+            <div class="field-label extra-title">{{title}}</div>
+            <div class="field-value body">{{content}}</div>
+          </div>
+          {{/each}}
+
           <div class="field-row">
             <div class="field-block">
               <div class="field-label">Disediakan Oleh</div>
               <div class="field-value">{{preparedBy}}</div>
+              {{#if preparedByPosition}}<div class="field-value signatory-position">{{preparedByPosition}}</div>{{/if}}
             </div>
             <div class="field-block">
               <div class="field-label">Disahkan Oleh</div>
               <div class="field-value">{{verifiedBy}}</div>
+              {{#if verifiedByPosition}}<div class="field-value signatory-position">{{verifiedByPosition}}</div>{{/if}}
             </div>
           </div>
         </div>
@@ -415,5 +499,62 @@
       </div>
     </div>
   </div>
+  <!-- Pembaharuan 01: muatkan teks banner menegak (nama anjuran manual
+       LAIN-LAIN boleh mencecah 100 aksara). Skrip HANYA bertindak jika teks
+       melebihi ruang banner - 3 anjuran asal (muat pada 25pt) tidak disentuh
+       langsung, jadi rupa PDF asal kekal sama. Langkah 1: kecilkan saiz font
+       satu baris (25pt -> 14pt). Langkah 2: jika masih panjang, benarkan
+       2 baris dan kecilkan lagi sehingga muat. Banner overflow:hidden, jadi
+       teks panjang tidak sekali-kali menolak kandungan ke halaman kedua. -->
+  <script>
+    (function () {
+      var banner = document.querySelector('.side-banner');
+      var text = banner && banner.querySelector('.side-banner-text');
+      if (!banner || !text) return;
+      var MM = 96 / 25.4;
+      // Panjang selamat = ketinggian banner tolak hujung serong clip-path
+      // (3.5% setiap hujung) dan margin 6mm; tebal selamat = lebar banner - 4mm.
+      var maxLen = banner.clientHeight * 0.93 - 12 * MM;
+      var maxThick = banner.clientWidth - 4 * MM;
+      function fits() {
+        return text.scrollWidth <= maxLen && text.offsetHeight <= maxThick;
+      }
+      if (fits()) return;
+      var size = 25;
+      while (!fits() && size > 14) {
+        size -= 0.5;
+        text.style.fontSize = size + 'pt';
+      }
+      if (fits()) return;
+      text.style.whiteSpace = 'normal';
+      text.style.width = maxLen + 'px';
+      text.style.textAlign = 'center';
+      text.style.lineHeight = '1.1';
+      text.style.overflowWrap = 'anywhere';
+      while (!fits() && size > 6) {
+        size -= 0.5;
+        text.style.fontSize = size + 'pt';
+      }
+    })();
+  </script>
+  <!-- Pembaharuan 04: pengawal limpahan lajur maklumat. Semakan halaman
+       (pdf-lib) hanya mengesan halaman ke-2; kandungan yang melimpah keluar
+       lajur maklumat tetapi masih dalam halaman A4 akan BERTINDIH dengan
+       jalur bawah/footer tanpa dikesan. Jika blok terakhir (tandatangan)
+       melepasi sempadan bawah lajur, tambah satu pemisah halaman kosong ->
+       PDF menjadi 2 halaman -> ditolak oleh mekanisme 422 sedia ada (tiada
+       muat naik, tiada rekod). Tiada kesan langsung jika kandungan muat. -->
+  <script>
+    (function () {
+      var col = document.querySelector('.info-column');
+      var last = col && col.lastElementChild;
+      if (!col || !last) return;
+      if (last.getBoundingClientRect().bottom > col.getBoundingClientRect().bottom + 0.5) {
+        var guard = document.createElement('div');
+        guard.style.cssText = 'break-before: page; page-break-before: always; height: 1px;';
+        document.body.appendChild(guard);
+      }
+    })();
+  </script>
 </body>
 </html>

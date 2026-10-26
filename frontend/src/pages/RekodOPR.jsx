@@ -6,8 +6,9 @@ import { api } from '../api/client';
 import Pagination from '../components/Pagination';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 
-// Sepadan tepat backend ALLOWED_ORGANIZERS (src/constants/opr.js) - Bahagian D.
-const ORGANIZER_FILTER_OPTIONS = ['KURIKULUM', 'HAL EHWAL MURID', 'KOKURIKULUM'];
+// Sepadan tepat backend ORGANIZER_OPTIONS (src/constants/opr.js) - Bahagian D.
+// LAIN-LAIN merangkumi semua rekod dengan nama anjuran manual (Pembaharuan 01).
+const ORGANIZER_FILTER_OPTIONS = ['KURIKULUM', 'HAL EHWAL MURID', 'KOKURIKULUM', 'LAIN-LAIN'];
 
 function tahunDaripadaTarikh(tarikh) {
   return tarikh.split('-')[0];

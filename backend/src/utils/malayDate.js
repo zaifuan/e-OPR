@@ -38,6 +38,47 @@ function formatMasaMelayu(timeStr) {
   return `${h12}:${String(m).padStart(2, '0')} ${period}`;
 }
 
+// Pembaharuan 02: format tarikh ringkas PDF. "2026-11-19" -> "19/11/2026"
+function formatTarikhRingkas(tarikhStr) {
+  const [year, month, day] = tarikhStr.split('-');
+  return `${day}/${month}/${year}`;
+}
+
+// Senarai tarikh berasingan (sudah tersusun). Bentuk ringkas "19/11, 24/11,
+// 30/11/2026" HANYA jika SEMUA tarikh dalam bulan & tahun yang sama; jika
+// tidak, tarikh lengkap setiap satu ("30/11/2026, 02/12/2026") - elak salah
+// tafsir.
+function formatSenaraiTarikh(tarikhList) {
+  const bulanTahun = tarikhList[0].slice(0, 7);
+  const samaBulanTahun = tarikhList.every((t) => t.slice(0, 7) === bulanTahun);
+  if (!samaBulanTahun) {
+    return tarikhList.map(formatTarikhRingkas).join(', ');
+  }
+  const year = tarikhList[0].slice(0, 4);
+  return tarikhList
+    .map((t, i) => {
+      const [, month, day] = t.split('-');
+      return i === tarikhList.length - 1 ? `${day}/${month}/${year}` : `${day}/${month}`;
+    })
+    .join(', ');
+}
+
+function bahagianWaktu(timeStr) {
+  return formatMasaMelayu(timeStr).split(' ').slice(1).join(' ');
+}
+
+// Jadual masa berbeza: jika mula & tamat dalam bahagian waktu yang sama,
+// sebut sekali di hujung ("8:00 – 10:00 pagi"); jika berbeza, penuh
+// ("9:00 pagi – 12:00 tengah hari").
+function formatJulatMasaRingkas(startStr, endStr) {
+  const waktu = bahagianWaktu(startStr);
+  if (waktu === bahagianWaktu(endStr)) {
+    const jamMula = formatMasaMelayu(startStr).split(' ')[0];
+    return `${jamMula} – ${formatMasaMelayu(endStr)}`;
+  }
+  return formatJulatMasaMelayu(startStr, endStr);
+}
+
 function formatJulatMasaMelayu(startStr, endStr) {
   return `${formatMasaMelayu(startStr)} – ${formatMasaMelayu(endStr)}`;
 }
@@ -47,18 +88,31 @@ function formatJulatMasaMelayu(startStr, endStr) {
 // seperti "26 Ogos 2026 - 26 Ogos 2026". line2 (hari) hanya diisi untuk
 // kes julat sebenar; kes satu-hari menggabungkan tarikh+hari dalam line1
 // sahaja (sepadan gaya sedia ada "27 Ogos 2026 / Rabu").
+//
+// Pembaharuan 02: tarikh kini format ringkas DD/MM/YYYY. Nama hari
+// dikekalkan; pemisah satu-hari ditukar "/" -> "( )" kerana "/" kini
+// sebahagian tarikh ("19/11/2026 (Khamis)", bukan "19/11/2026 / Khamis").
 function formatTarikhInfo(startStr, endStr) {
-  const startDate = formatTarikhMelayu(startStr);
+  const startDate = formatTarikhRingkas(startStr);
   const startDay = kiraHari(startStr);
   const isRange = Boolean(endStr) && endStr !== startStr;
 
   if (!isRange) {
-    return { line1: `${startDate} / ${startDay}`, line2: null };
+    return { line1: `${startDate} (${startDay})`, line2: null };
   }
 
-  const endDate = formatTarikhMelayu(endStr);
+  const endDate = formatTarikhRingkas(endStr);
   const endDay = kiraHari(endStr);
   return { line1: `${startDate} – ${endDate}`, line2: `${startDay} – ${endDay}` };
 }
 
-module.exports = { kiraHari, formatTarikhMelayu, formatMasaMelayu, formatJulatMasaMelayu, formatTarikhInfo };
+module.exports = {
+  kiraHari,
+  formatTarikhMelayu,
+  formatMasaMelayu,
+  formatJulatMasaMelayu,
+  formatTarikhInfo,
+  formatTarikhRingkas,
+  formatSenaraiTarikh,
+  formatJulatMasaRingkas,
+};

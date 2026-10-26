@@ -1,4 +1,5 @@
 const pool = require('../db/pool');
+const { ALLOWED_ORGANIZERS, OTHER_ORGANIZER } = require('../constants/opr');
 
 const PAGE_SIZE = 10;
 const SAFE_FIELDS = 'id, program_name, program_date, organizer, prepared_by, generated_at';
@@ -18,7 +19,13 @@ function buildFilters({ query, year, organizer }) {
     params.push(year);
     conditions.push(`EXTRACT(YEAR FROM program_date) = $${params.length}`);
   }
-  if (organizer) {
+  if (organizer === OTHER_ORGANIZER) {
+    // Pembaharuan 01: LAIN-LAIN = semua rekod dengan nama anjuran manual,
+    // iaitu organizer bukan NULL (rekod lama pra-Anjuran kekal di luar) dan
+    // bukan salah satu daripada 3 anjuran asal.
+    params.push(ALLOWED_ORGANIZERS);
+    conditions.push(`organizer IS NOT NULL AND organizer <> ALL($${params.length}::text[])`);
+  } else if (organizer) {
     params.push(organizer);
     conditions.push(`organizer = $${params.length}`);
   }

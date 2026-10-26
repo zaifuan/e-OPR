@@ -3,7 +3,7 @@ const path = require('path');
 const { PDFDocument } = require('pdf-lib');
 
 const env = require('../config/env');
-const { ALLOWED_ORGANIZERS } = require('../constants/opr');
+const { ORGANIZER_OPTIONS } = require('../constants/opr');
 const { validateFields, validateImages } = require('../services/opr.validation');
 const { processImages } = require('../services/image.service');
 const { renderOprHtml } = require('../templates/opr.template');
@@ -24,11 +24,12 @@ function isValidYearParam(raw) {
   return Number.isInteger(year) && year >= 2000 && year <= CURRENT_YEAR + 1;
 }
 
-// Anjuran filter HANYA menerima 3 nilai tetap sistem (Bahagian AB) - bukan
-// arbitrary string daripada client.
+// Anjuran filter HANYA menerima nilai tetap sistem (Bahagian AB) - bukan
+// arbitrary string daripada client. Pembaharuan 01: termasuk LAIN-LAIN
+// (merangkumi semua rekod anjuran manual - lihat opr.records.js).
 function isValidOrganizerParam(raw) {
   if (raw === undefined || raw === null || raw === '') return true;
-  return ALLOWED_ORGANIZERS.includes(raw);
+  return ORGANIZER_OPTIONS.includes(raw);
 }
 
 // Had concurrency generation PDF - server dikongsi dengan aplikasi lain, RAM
@@ -115,7 +116,14 @@ async function submitOPR(req, res) {
         console.error(
           `[opr] generation ditolak - requestId=${req.oprRequestId} pageCount=${pageCount} (melebihi 1 halaman)`
         );
-        return res.status(422).json({ message: 'OPR melebihi satu halaman. Sila ringkaskan kandungan.' });
+        // Pembaharuan 03: mesej lebih jelas. PDF tidak dimuat naik & rekod tidak
+        // disimpan (return sebelum Drive/DB); folder gambar sementara dibersihkan
+        // oleh finally di bawah.
+        return res.status(422).json({
+          message:
+            'Maklumat OPR terlalu panjang untuk dimuatkan dalam satu halaman A4. ' +
+            'Sila ringkaskan kandungan atau kurangkan maklumat tambahan.',
+        });
       }
 
       // ---- Google Drive (Bahagian 5/6/7): PRIMARY STORAGE, bukan backup ----
