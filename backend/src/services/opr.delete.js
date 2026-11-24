@@ -49,6 +49,24 @@ async function deleteOprRecord(id) {
       driveMissing = Boolean(driveResult.alreadyMissing);
     }
 
+    // Kemas Kini 2: PDF versi terdahulu (sejarah suntingan) turut dipadam
+    // apabila Admin memadam KESELURUHAN OPR - semantik sama: jika mana-mana
+    // gagal (bukan 404), DB tidak dipadam dan Admin boleh cuba semula
+    // (fail yang sudah dipadam akan memberi 404 = berjaya, idempotent).
+    // Baris opr_versions dipadam oleh ON DELETE CASCADE.
+    const { rows: olderVersions } = await client.query(
+      'SELECT DISTINCT drive_file_id FROM opr_versions WHERE opr_id = $1 AND drive_file_id IS DISTINCT FROM $2',
+      [id, record.drive_file_id]
+    );
+    for (const version of olderVersions) {
+      const driveResult = await deleteDriveFile(version.drive_file_id);
+      if (!driveResult.success) {
+        await client.query('ROLLBACK');
+        console.error(`[delete] Drive delete (versi lama) gagal untuk id=${id} - DB TIDAK dipadam (boleh cuba lagi)`);
+        throw Object.assign(new Error('OPR gagal dipadam. Sila cuba semula.'), { status: 500 });
+      }
+    }
+
     await client.query('DELETE FROM opr_records WHERE id = $1', [id]);
     await client.query('COMMIT');
 

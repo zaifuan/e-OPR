@@ -881,3 +881,445 @@ button {
   color: var(--color-text-muted);
   opacity: 0.8;
 }
+
+/* ---------- Pratonton OPR / PDF Viewer (Kemas Kini 1) ---------- */
+
+.opr-viewer-page h1 {
+  margin-bottom: 4px;
+}
+
+.opr-viewer-subtitle {
+  color: var(--color-text-muted);
+  margin: 0 0 12px;
+  overflow-wrap: anywhere;
+}
+
+.opr-viewer-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.opr-viewer-zoom {
+  display: inline-flex;
+  gap: 4px;
+  order: 3;
+  width: 100%;
+  justify-content: center;
+}
+
+.opr-viewer-zoom .btn {
+  min-width: 44px;
+  font-variant-numeric: tabular-nums;
+}
+
+.opr-viewer-zoom-value {
+  min-width: 68px;
+}
+
+@media (min-width: 480px) {
+  .opr-viewer-zoom {
+    order: 0;
+    width: auto;
+  }
+}
+
+.opr-viewer-stage {
+  background: #e9ece9;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 8px;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  min-height: 240px;
+}
+
+.pdf-canvas {
+  display: block;
+  margin: 0 auto;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(20, 30, 24, 0.18);
+}
+
+.pdf-canvas + .pdf-canvas {
+  margin-top: 8px;
+}
+
+.opr-viewer-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--color-text-muted);
+}
+
+.opr-viewer-message p {
+  margin: 0;
+}
+
+.opr-viewer-error {
+  background: var(--color-bg);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius);
+  color: var(--color-text);
+}
+
+.opr-viewer-error p {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.opr-viewer-message-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.opr-viewer-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: opr-viewer-spin 0.8s linear infinite;
+}
+
+@keyframes opr-viewer-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opr-viewer-spinner {
+    animation-duration: 2.4s;
+  }
+}
+
+/* ---------- Edit OPR 24 Jam & Sejarah Versi (Kemas Kini 2) ---------- */
+
+.edit-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.edit-badge.is-editable {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-dark);
+  border: 1px solid var(--color-primary);
+}
+
+.edit-badge.is-locked {
+  background: var(--color-bg-subtle);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+.edit-window-banner {
+  background: var(--color-primary-soft);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.edit-link-box {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.edit-link-box p {
+  margin: 0 0 10px;
+}
+
+.edit-link-row {
+  display: flex;
+  gap: 8px;
+}
+
+.edit-link-row input {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.85rem;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-subtle);
+}
+
+.version-history {
+  margin-top: 24px;
+}
+
+.version-history ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.version-history li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.version-history li:first-child {
+  border-top: 0;
+}
+
+.version-history li.is-current strong {
+  color: var(--color-primary-dark);
+}
+
+.version-history-meta {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.version-history-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ---------- Duplicate & Edit OPR (Kemas Kini 3) ---------- */
+
+.edit-window-banner p {
+  margin: 0 0 6px;
+}
+
+.edit-window-banner p:last-child {
+  margin-bottom: 0;
+}
+
+.duplicate-legacy-note {
+  color: #8a5a00;
+  font-weight: 600;
+}
+
+.duplicate-confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.duplicate-confirm input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+/* ---------- Rekod OPR: tarikh janaan (Kemas Kini 4) ---------- */
+
+/* Lajur tarikh boleh dibalut ("24 November" / "2026") supaya jadual 7 lajur
+   muat tanpa tatal mendatar. */
+.rekod-table th.rekod-th-wrap {
+  white-space: normal;
+}
+
+.rekod-table-generated {
+  white-space: normal;
+}
+
+/* Desktop lebar (>=1000px): halaman Rekod OPR menggunakan ruang lebih lebar
+   (maks 1080px, berpusat) - jadual 7 lajur + tindakan muat dengan selesa.
+   Guna margin (BUKAN transform) supaya modal padam (position: fixed) tidak
+   terjejas. Halaman lain kekal 720px. */
+@media (min-width: 1000px) {
+  .page-rekod {
+    width: min(1080px, calc(100vw - 48px));
+    margin-left: calc(50% - min(540px, calc(50vw - 24px)));
+  }
+  /* 6 lajur (pembetulan paparan): BIL & TAHUN sempit, tarikh dijana satu
+     baris - ruang lebih untuk Nama Program & Tindakan. */
+  .rekod-table th:nth-child(1),
+  .rekod-table td:nth-child(1) {
+    width: 44px;
+  }
+  .rekod-table th:nth-child(2),
+  .rekod-table td:nth-child(2) {
+    width: 64px;
+  }
+  .rekod-table-name {
+    min-width: 200px;
+  }
+  .rekod-table td.rekod-table-generated {
+    white-space: nowrap;
+  }
+}
+
+/* Tablet / skrin sempit desktop (700-999px): jadual padat. */
+@media (min-width: 700px) and (max-width: 999px) {
+  .rekod-table th,
+  .rekod-table td {
+    padding: 8px 6px;
+  }
+  .rekod-table td {
+    font-size: 0.84rem;
+  }
+  .rekod-table-name {
+    min-width: 130px;
+  }
+  .rekod-table .rekod-actions {
+    gap: 4px 8px;
+  }
+}
+
+.rekod-card-generated {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin: -6px 0 10px;
+}
+
+/* Kemas Kini 5: PILIH REKA BENTUK OPR - kad pratonton ringan (CSS sahaja). */
+.design-picker {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 14px 14px 16px;
+  margin: 22px 0 18px;
+  min-width: 0;
+}
+.design-picker legend {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 0 6px;
+}
+.design-picker .field-hint {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin-bottom: 12px;
+}
+.design-grid {
+  display: grid;
+  /* Kemas Kini 6: 10 design - 5 lajur (komputer), 3 (tablet), 2 (telefon) */
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+@media (max-width: 999px) {
+  .design-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .design-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+}
+.design-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 2px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-bg);
+  cursor: pointer;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.design-card:hover { border-color: #b9c2bc; }
+.design-card input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  pointer-events: none;
+}
+.design-card.is-selected {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
+}
+.design-card.is-selected::after {
+  content: '\2713';
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 22px;
+  text-align: center;
+}
+.design-card:has(input:focus-visible) {
+  outline: 3px solid var(--color-primary-dark);
+  outline-offset: 2px;
+}
+.design-card-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.design-card-text strong { font-size: 0.95rem; }
+.design-card-text span { font-size: 0.78rem; color: var(--color-text-muted); line-height: 1.3; }
+.design-card-random {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.design-random-icon {
+  display: grid;
+  grid-template-columns: repeat(5, 10px);
+  gap: 3px;
+  flex: none;
+}
+.design-random-icon span { width: 10px; height: 10px; border-radius: 2px; }
+
+/* Halaman mini A4 (nisbah 210:297) - susun atur ringkas template sebenar. */
+.design-mini {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 210 / 297;
+  max-height: 140px; /* KK6: 10 kad - pratonton lebih rendah supaya butang Jana mudah dicapai */
+  margin: 0 auto;
+  background: #fff;
+  border: 1px solid #e3e6e4;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.design-mini > span { position: absolute; display: block; }
+.design-mini-banner { left: 0; top: 0; bottom: 0; width: 9%; background-color: var(--d-primary); background-size: 100% 5%; background-repeat: no-repeat; background-position: top, bottom; }
+.design-mini-head-a { left: 9%; top: 0; width: 22%; height: 11%; background: var(--d-secondary); clip-path: polygon(0 0, 100% 0, 0 100%); }
+.design-mini-head-b { left: 31%; top: 0; right: 0; height: 7%; background-color: var(--d-ink); }
+.design-mini-tab { right: 0; top: 7%; width: 26%; height: 4%; background: var(--d-tab); }
+.design-mini-bar { left: 14%; right: 6%; top: 15%; height: 6%; background: var(--d-light); }
+.design-mini-lines {
+  left: 14%; right: 6%; top: 25%; height: 26%;
+  background: repeating-linear-gradient(180deg, #d5d9d6 0 2px, transparent 2px 9px);
+}
+.design-mini-photos {
+  left: 14%; right: 6%; top: 55%; height: 28%;
+  background:
+    linear-gradient(90deg, #dfe3e0 0 48%, transparent 48% 52%, #dfe3e0 52%) top / 100% 46% no-repeat,
+    linear-gradient(90deg, #dfe3e0 0 48%, transparent 48% 52%, #dfe3e0 52%) bottom / 100% 46% no-repeat;
+}
+.design-mini-footer { left: 9%; right: 0; bottom: 0; height: 7%; background: var(--d-ink); }

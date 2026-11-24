@@ -15,6 +15,7 @@ export function useOprRecords() {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [year, setYearState] = useState('');
   const [organizer, setOrganizerState] = useState('');
+  const [sort, setSortState] = useState('newest'); // Kemas Kini 4: ikut tarikh janaan
   const [page, setPage] = useState(1);
 
   const [records, setRecords] = useState([]);
@@ -34,10 +35,10 @@ export function useOprRecords() {
   // Search/filter berubah -> reset ke page 1 (Bahagian K/AB pindaan pagination).
   useEffect(() => {
     setPage(1);
-  }, [debouncedQuery, year, organizer]);
+  }, [debouncedQuery, year, organizer, sort]);
 
   async function fetchPage(targetPage, signal) {
-    return api.searchOpr({ q: debouncedQuery, year, organizer, page: targetPage }, signal);
+    return api.searchOpr({ q: debouncedQuery, year, organizer, page: targetPage, sort }, signal);
   }
 
   useEffect(() => {
@@ -60,7 +61,7 @@ export function useOprRecords() {
         if (!controller.signal.aborted) setLoading(false);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedQuery, year, organizer, page]);
+  }, [debouncedQuery, year, organizer, sort, page]);
 
   // Selepas Admin padam rekod (Bahagian W pindaan pagination): jika page
   // semasa tidak lagi wujud (cth. rekod terakhir pada halaman terakhir
@@ -92,6 +93,8 @@ export function useOprRecords() {
     setYear: setYearState,
     organizer,
     setOrganizer: setOrganizerState,
+    sort,
+    setSort: setSortState,
     page,
     setPage,
     records,

@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { useOprSearch } from '../hooks/useOprSearch';
-import { formatTarikhMelayu } from './opr-form.constants';
+import { formatTarikhMelayu, formatTarikhDijanaRingkas } from './opr-form.constants';
 import { api } from '../api/client';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import EditStatus from '../components/EditStatus';
 
 export default function AdminDashboard() {
   const { admin, loading: authLoading, logout } = useAdminAuth();
@@ -85,12 +86,14 @@ export default function AdminDashboard() {
               <li key={record.id} className="record-card">
                 <div className="record-name">{record.program_name}</div>
                 <div className="record-meta">
-                  {formatTarikhMelayu(record.program_date)} · Disediakan oleh: {record.prepared_by}
+                  {formatTarikhMelayu(record.program_date)} · Disediakan oleh: {record.prepared_by} · Dijana:{' '}
+                  {formatTarikhDijanaRingkas(record.generated_at)}
                 </div>
                 <div className="record-actions record-actions-admin">
+                  <EditStatus record={record} isAdmin variant="button" />
                   <a
                     className="btn btn-secondary btn-small"
-                    href={`/api/opr/${record.id}/pdf`}
+                    href={`/opr/${record.id}/lihat`}
                     target="_blank"
                     rel="noreferrer"
                   >
@@ -99,6 +102,9 @@ export default function AdminDashboard() {
                   <a className="btn btn-secondary btn-small" href={`/api/opr/${record.id}/pdf?download=1`}>
                     Muat Turun
                   </a>
+                  <Link className="btn btn-secondary btn-small" to={`/opr/${record.id}/duplicate`}>
+                    Duplicate &amp; Edit
+                  </Link>
                   <button
                     type="button"
                     className="btn btn-danger btn-small"

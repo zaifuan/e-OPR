@@ -491,4 +491,106 @@ function validateImages(files) {
   return null;
 }
 
-module.exports = { validateFields, validateImages };
+// ===================== Kemas Kini 2: Edit OPR =====================
+
+// Semakan jenis/saiz bagi gambar BAHARU dalam suntingan (bilangan fail boleh
+// 0-4 kerana gambar sedia ada boleh dikekalkan). Peraturan jenis/saiz SAMA
+// seperti validateImages (penjanaan asal).
+function validateImageFiles(files) {
+  for (const file of files || []) {
+    if (file.size > MAX_IMAGE_BYTES) {
+      return MESSAGES.images.size;
+    }
+    const detected = detectImageType(file.path);
+    if (!detected || !ALLOWED_IMAGE_MIME.has(detected)) {
+      return MESSAGES.images.type;
+    }
+  }
+  return null;
+}
+
+// image_slots (suntingan): JSON array tepat REQUIRED_IMAGES item mengikut
+// susunan dalam PDF - {"keep": i} (gambar ke-i versi aktif) atau
+// {"new": j} (fail baharu ke-j). Setiap gambar sedia ada paling banyak
+// sekali; setiap fail baharu mesti digunakan tepat sekali.
+function parseImageSlots(raw, existingCount, newFileCount) {
+  if (typeof raw !== 'string' || raw.length > 500) return null;
+  let list;
+  try {
+    list = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(list) || list.length !== REQUIRED_IMAGES) return null;
+  const usedKeep = new Set();
+  const usedNew = new Set();
+  const slots = [];
+  for (const item of list) {
+    if (!item || typeof item !== 'object') return null;
+    const keys = Object.keys(item);
+    if (keys.length !== 1) return null;
+    const [kind] = keys;
+    const index = item[kind];
+    if (!Number.isInteger(index) || index < 0) return null;
+    if (kind === 'keep') {
+      if (index >= existingCount || usedKeep.has(index)) return null;
+      usedKeep.add(index);
+    } else if (kind === 'new') {
+      if (index >= newFileCount || usedNew.has(index)) return null;
+      usedNew.add(index);
+    } else {
+      return null;
+    }
+    slots.push({ kind, index });
+  }
+  if (usedNew.size !== newFileCount) return null;
+  return slots;
+}
+
+// Snapshot input borang (opr_versions.form_data) - nilai SEBAGAIMANA dihantar
+// oleh borang (selepas lulus validateFields), supaya borang Edit dipulihkan
+// tepat tanpa kehilangan maklumat/susunan. Senarai kunci tetap (whitelist):
+// kunci asing daripada klien tidak pernah disimpan.
+const FORM_SNAPSHOT_KEYS = [
+  'program_name',
+  'organizer',
+  'organizer_other',
+  'date_mode',
+  'time_mode',
+  'program_date_start',
+  'program_date_end',
+  'start_time',
+  'end_time',
+  'location',
+  'target_group',
+  'objectives',
+  'activity_summary',
+  'strengths',
+  'weaknesses',
+  'improvements',
+  'prepared_by',
+  'prepared_by_position',
+  'verified_by',
+  'verified_by_position',
+];
+
+function buildFormSnapshot(body) {
+  body = body || {};
+  const snapshot = { schema: 1 };
+  for (const key of FORM_SNAPSHOT_KEYS) {
+    if (typeof body[key] === 'string') snapshot[key] = body[key];
+  }
+  for (const key of ['sessions', 'additional_info']) {
+    if (typeof body[key] === 'string' && body[key].trim() !== '') {
+      try {
+        const parsed = JSON.parse(body[key]);
+        if (Array.isArray(parsed)) snapshot[key] = parsed;
+      } catch {
+        // tidak berlaku selepas validateFields lulus - abaikan dengan selamat
+      }
+    }
+  }
+  return snapshot;
+}
+
+module.exports = { validateFields, validateImages, validateImageFiles, parseImageSlots, buildFormSnapshot };

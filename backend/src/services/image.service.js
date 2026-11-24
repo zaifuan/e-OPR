@@ -8,10 +8,10 @@ const sharp = require('sharp');
 const TARGET_LONG_EDGE = 1800;
 const JPEG_QUALITY = 82;
 
-// Proses satu fail gambar (path sementara) -> data URI JPEG. Tidak menulis
+// Proses satu fail gambar (path sementara) -> buffer JPEG. Tidak menulis
 // apa-apa ke cakera - hasil hanya wujud dalam memori sepanjang request.
-async function processImageToDataUri(filePath) {
-  const buffer = await sharp(filePath)
+async function processImageToBuffer(filePath) {
+  return sharp(filePath)
     .rotate() // auto-putar ikut EXIF orientation, kemudian buang tag EXIF (sudah "dibakar")
     .resize({
       width: TARGET_LONG_EDGE,
@@ -21,12 +21,24 @@ async function processImageToDataUri(filePath) {
     })
     .jpeg({ quality: JPEG_QUALITY, mozjpeg: true })
     .toBuffer();
+}
 
+function bufferToDataUri(buffer) {
   return `data:image/jpeg;base64,${buffer.toString('base64')}`;
+}
+
+async function processImageToDataUri(filePath) {
+  return bufferToDataUri(await processImageToBuffer(filePath));
 }
 
 async function processImages(files) {
   return Promise.all(files.map((file) => processImageToDataUri(file.path)));
 }
 
-module.exports = { processImages, TARGET_LONG_EDGE, JPEG_QUALITY };
+// Kemas Kini 2: buffer JPEG yang SAMA TEPAT seperti yang dibenamkan dalam PDF
+// - disimpan (opr.imageStore) supaya borang Edit boleh guna semula gambar.
+async function processImageBuffers(files) {
+  return Promise.all(files.map((file) => processImageToBuffer(file.path)));
+}
+
+module.exports = { processImages, processImageBuffers, bufferToDataUri, TARGET_LONG_EDGE, JPEG_QUALITY };

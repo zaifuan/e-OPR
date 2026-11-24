@@ -66,6 +66,32 @@ const BULAN_MELAYU = [
   'Julai', 'Ogos', 'September', 'Oktober', 'November', 'Disember',
 ];
 
+const BULAN_RINGKAS = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogo', 'Sep', 'Okt', 'Nov', 'Dis'];
+
+// Kemas Kini 4: tarikh janaan OPR (generated_at, timestamp ISO UTC daripada
+// API) -> tarikh kalendar MALAYSIA (Asia/Kuala_Lumpur, UTC+8 tetap - tiada
+// waktu jimat siang sejak 1982). Paparan sahaja; data DB tidak diubah dan
+// tidak bergantung pada zon masa peranti pengguna. Pulangkan null jika tidak sah.
+const MYT_OFFSET_MS = 8 * 60 * 60 * 1000;
+function tarikhMalaysia(iso) {
+  const ms = Date.parse(iso);
+  if (!iso || !Number.isFinite(ms)) return null;
+  const d = new Date(ms + MYT_OFFSET_MS);
+  return { day: d.getUTCDate(), month: d.getUTCMonth(), year: d.getUTCFullYear() };
+}
+
+// "2026-11-24T02:30:00Z" -> "24 November 2026" (tarikh sahaja, tanpa waktu)
+export function formatTarikhDijana(iso) {
+  const t = tarikhMalaysia(iso);
+  return t ? `${t.day} ${BULAN_MELAYU[t.month]} ${t.year}` : '—';
+}
+
+// Versi ringkas untuk paparan telefon: "24 Nov 2026"
+export function formatTarikhDijanaRingkas(iso) {
+  const t = tarikhMalaysia(iso);
+  return t ? `${t.day} ${BULAN_RINGKAS[t.month]} ${t.year}` : '—';
+}
+
 // "2026-01-14" -> "14 Januari 2026" - konsisten dengan format dalam PDF (Fasa 3).
 export function formatTarikhMelayu(tarikh) {
   if (!tarikh) return '';

@@ -94,7 +94,47 @@ router.get('/recent', readLimiter, wrapAsync(oprController.getRecent));
 router.get('/search', readLimiter, wrapAsync(oprController.search));
 router.get('/years', readLimiter, wrapAsync(oprController.getYears));
 router.get('/:id/pdf', readLimiter, wrapAsync(oprController.getPdf));
+// Kemas Kini 2: Edit OPR 24 jam + sejarah versi. Kebenaran (token suntingan
+// header X-OPR-Edit-Token / sesi Admin) & tempoh disemak di controller -
+// mengetahui ID OPR sahaja TIDAK mencukupi.
+router.get('/:id/edit', readLimiter, wrapAsync(oprController.getEditData));
+router.get('/:id/versions', readLimiter, wrapAsync(oprController.getVersions));
+// Kemas Kini 3: sumber Duplicate & Edit (baca sahaja). Rekod baharu dijana
+// melalui POST /api/opr sedia ada - BUKAN PUT Edit 24 Jam.
+router.get('/:id/duplicate-source', readLimiter, wrapAsync(oprController.getDuplicateSource));
+router.get('/:id/versions/:version/pdf', readLimiter, wrapAsync(oprController.getVersionPdf));
 router.get('/:id', readLimiter, wrapAsync(oprController.getById));
+
+// PUT /api/opr/:id - simpan pembetulan & jana PDF versi baharu. Had kadar
+// SAMA seperti penjanaan (oprLimiter). preEditCheck menolak permintaan tanpa
+// kebenaran / selepas tamat tempoh SEBELUM fail dimuat naik.
+router.put('/:id', oprLimiter, assignRequestId, oprController.preEditCheck, (req, res, next) => {
+  upload(req, res, async (err) => {
+    if (err) {
+      await oprController.cleanupTemp(req.oprRequestId);
+
+      if (err instanceof multer.MulterError) {
+        const map = {
+          LIMIT_FILE_SIZE: MESSAGES.images.size,
+          LIMIT_FILE_COUNT: MESSAGES.images.count,
+          LIMIT_UNEXPECTED_FILE: MESSAGES.images.count,
+        };
+        return res.status(400).json({
+          valid: false,
+          errors: { images: map[err.code] || 'Ralat memuat naik gambar.' },
+        });
+      }
+
+      return next(err);
+    }
+
+    try {
+      await oprController.submitEdit(req, res);
+    } catch (handlerErr) {
+      next(handlerErr);
+    }
+  });
+});
 
 // Express 5 sudah auto-forward async rejection untuk route handler biasa,
 // tetapi wrapper ini kekal sebagai jaminan eksplisit + konsisten merentasi

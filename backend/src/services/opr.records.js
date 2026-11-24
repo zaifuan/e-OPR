@@ -39,9 +39,31 @@ function buildFilters({ query, year, organizer }) {
 // Carian/senarai BERSATU - satu fungsi dikongsi oleh /recent dan /search
 // supaya COUNT dan SELECT rekod SENTIASA guna filter yang sama (elak
 // "jadual tunjuk 7 rekod tapi total kata 87").
-// Susunan program_date DESC + id DESC sebagai tie-breaker deterministic -
-// rekod tidak "melompat" antara halaman pagination.
-async function findRecords({ query, year, organizer, page }) {
+// Susunan: lihat SORT_ORDERS (Kemas Kini 4 - tarikh janaan, bukan lagi
+// program_date) + id sebagai tie-breaker deterministik - rekod tidak
+// "melompat" antara halaman pagination.
+// Kemas Kini 2: includeEditInfo (sesi Admin sahaja - ditentukan controller)
+// menambah edit_expires_at, current_version & edit_open (jam DB) untuk status
+// "Boleh Edit"/"Dikunci". API awam kekal dengan SAFE_FIELDS asal.
+const EDIT_INFO_FIELDS =
+  'edit_expires_at, current_version, (edit_expires_at IS NOT NULL AND edit_expires_at > now()) AS edit_open';
+
+// Kemas Kini 4: susunan mengikut TARIKH JANAAN (generated_at = masa OPR
+// PERTAMA kali dijana; Edit 24 Jam tidak mengubahnya, Duplicate mencipta
+// baris baharu dengan generated_at sendiri). Timestamp penuh digunakan - OPR
+// yang dijana pada hari sama tetap tersusun ikut masa; id sebagai tie-breaker
+// deterministik. NULLS LAST: lajur NOT NULL sejak 001, tetapi dikekalkan
+// sebagai jaminan susunan konsisten. Susunan dibuat dalam SQL SEBELUM
+// LIMIT/OFFSET - konsisten merentasi semua halaman. Nilai klien tidak pernah
+// masuk ke SQL: hanya kunci whitelist dipetakan kepada klausa tetap.
+const SORT_ORDERS = {
+  newest: 'generated_at DESC NULLS LAST, id DESC',
+  oldest: 'generated_at ASC NULLS LAST, id ASC',
+};
+const DEFAULT_SORT = 'newest';
+
+async function findRecords({ query, year, organizer, page, includeEditInfo = false, sort = DEFAULT_SORT }) {
+  const orderBy = SORT_ORDERS[sort] || SORT_ORDERS[DEFAULT_SORT];
   const { where, params } = buildFilters({ query, year, organizer });
   const offset = (page - 1) * PAGE_SIZE;
 
@@ -54,8 +76,8 @@ async function findRecords({ query, year, organizer, page }) {
   const limitIdx = params.length + 1;
   const offsetIdx = params.length + 2;
   const { rows } = await pool.query(
-    `SELECT ${SAFE_FIELDS} FROM opr_records ${where}
-     ORDER BY program_date DESC, id DESC
+    `SELECT ${SAFE_FIELDS}${includeEditInfo ? `, ${EDIT_INFO_FIELDS}` : ''} FROM opr_records ${where}
+     ORDER BY ${orderBy}
      LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
     [...params, PAGE_SIZE, offset]
   );
@@ -88,4 +110,4 @@ async function findById(id) {
   return rows[0] || null;
 }
 
-module.exports = { findRecords, findAvailableYears, findById, PAGE_SIZE };
+module.exports = { findRecords, findAvailableYears, findById, PAGE_SIZE, SORT_ORDERS };

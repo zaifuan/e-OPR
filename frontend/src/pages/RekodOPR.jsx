@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useOprRecords } from '../hooks/useOprRecords';
 import { useAdminAuth } from '../context/AdminAuthContext';
-import { formatTarikhMelayu } from './opr-form.constants';
+import { formatTarikhDijana, formatTarikhDijanaRingkas } from './opr-form.constants';
 import { api } from '../api/client';
 import Pagination from '../components/Pagination';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import EditStatus from '../components/EditStatus';
 
 // Sepadan tepat backend ORGANIZER_OPTIONS (src/constants/opr.js) - Bahagian D.
 // LAIN-LAIN merangkumi semua rekod dengan nama anjuran manual (Pembaharuan 01).
@@ -23,6 +25,8 @@ export default function RekodOPR() {
     setYear,
     organizer,
     setOrganizer,
+    sort,
+    setSort,
     page,
     setPage,
     records,
@@ -69,7 +73,7 @@ export default function RekodOPR() {
   const rangeEnd = Math.min(page * 10, total);
 
   return (
-    <div className="page">
+    <div className="page page-rekod">
       <h1>Rekod OPR</h1>
 
       <div className="rekod-filters">
@@ -94,6 +98,14 @@ export default function RekodOPR() {
                 {option}
               </option>
             ))}
+          </select>
+        </div>
+
+        <div className="rekod-filter-field">
+          <label htmlFor="rekod-filter-susunan">Susunan</label>
+          <select id="rekod-filter-susunan" value={sort} onChange={(e) => setSort(e.target.value)}>
+            <option value="newest">Terbaharu dahulu</option>
+            <option value="oldest">Terlama dahulu</option>
           </select>
         </div>
 
@@ -131,7 +143,7 @@ export default function RekodOPR() {
                 <th>TAHUN</th>
                 <th>ANJURAN</th>
                 <th>NAMA PROGRAM</th>
-                <th>TARIKH</th>
+                <th className="rekod-th-wrap">TARIKH DIJANA</th>
                 <th>TINDAKAN</th>
               </tr>
             </thead>
@@ -142,11 +154,12 @@ export default function RekodOPR() {
                   <td>{tahunDaripadaTarikh(record.program_date)}</td>
                   <td>{record.organizer || '—'}</td>
                   <td className="rekod-table-name">{record.program_name}</td>
-                  <td>{formatTarikhMelayu(record.program_date)}</td>
+                  <td className="rekod-table-generated">{formatTarikhDijana(record.generated_at)}</td>
                   <td>
                     <div className="rekod-actions">
+                      <EditStatus record={record} isAdmin={Boolean(admin)} />
                       <a
-                        href={`/api/opr/${record.id}/pdf`}
+                        href={`/opr/${record.id}/lihat`}
                         target="_blank"
                         rel="noreferrer"
                         className="rekod-action-link"
@@ -163,6 +176,14 @@ export default function RekodOPR() {
                       >
                         Muat Turun
                       </a>
+                      <Link
+                        to={`/opr/${record.id}/duplicate`}
+                        className="rekod-action-link"
+                        aria-label={`Duplicate & Edit ${record.program_name}`}
+                        title="Hasilkan OPR baharu berdasarkan rekod ini"
+                      >
+                        Duplicate &amp; Edit
+                      </Link>
                       {admin && (
                         <button
                           type="button"
@@ -191,12 +212,13 @@ export default function RekodOPR() {
                 <div className="rekod-card-bil">#{(page - 1) * 10 + index + 1}</div>
                 <div className="rekod-card-name">{record.program_name}</div>
                 <div className="rekod-card-meta">
-                  {tahunDaripadaTarikh(record.program_date)} · {record.organizer || '—'} ·{' '}
-                  {formatTarikhMelayu(record.program_date)}
+                  {tahunDaripadaTarikh(record.program_date)} · {record.organizer || '—'}
                 </div>
+                <div className="rekod-card-generated">Dijana: {formatTarikhDijanaRingkas(record.generated_at)}</div>
                 <div className="rekod-actions">
+                  <EditStatus record={record} isAdmin={Boolean(admin)} variant="button" />
                   <a
-                    href={`/api/opr/${record.id}/pdf`}
+                    href={`/opr/${record.id}/lihat`}
                     target="_blank"
                     rel="noreferrer"
                     className="btn btn-secondary btn-small"
@@ -211,6 +233,13 @@ export default function RekodOPR() {
                   >
                     Muat Turun
                   </a>
+                  <Link
+                    to={`/opr/${record.id}/duplicate`}
+                    className="btn btn-secondary btn-small"
+                    aria-label={`Duplicate & Edit ${record.program_name}`}
+                  >
+                    Duplicate &amp; Edit
+                  </Link>
                   {admin && (
                     <button
                       type="button"

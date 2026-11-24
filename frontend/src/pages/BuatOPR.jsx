@@ -1,6 +1,11 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import Field from '../components/Field';
+import DesignPicker from '../components/DesignPicker';
+import { DESIGN_IDS, RANDOM_DESIGN, designLabel } from '../utils/designOptions';
 import { api } from '../api/client';
+import { bakiMasa, buildEditLink, computeServerOffset, formatMasa, saveEditToken } from '../utils/editTokens';
+import { ticketFromSource } from '../utils/duplicateTicket';
 import {
   LIMITS,
   REQUIRED_IMAGES,
@@ -199,16 +204,61 @@ function validateAdditionalInfo(infoList) {
   return errors;
 }
 
-export default function BuatOPR() {
-  const [form, setForm] = useState(INITIAL_FORM);
-  const [images, setImages] = useState([]); // [{ file, previewUrl }] - previewUrl ialah data: URI (bukan blob:)
+// Kemas Kini 2: komponen yang SAMA digunakan untuk borang Edit (editContext
+// disediakan oleh pages/EditOPR.jsx) - susunan medan & reka bentuk borang asal
+// dikekalkan sepenuhnya. Tanpa editContext, tingkah laku Buat OPR tidak berubah.
+//
+// Kemas Kini 3: duplicateContext (pages/DuplicateOPR.jsx) - mod "Duplicate &
+// Edit": borang diisi daripada rekod sumber, tetapi penjanaan tetap aliran
+// CREATE asal (POST /api/opr, validasi sama) dan menghasilkan rekod BAHARU.
+export default function BuatOPR({ editContext = null, duplicateContext = null }) {
+  const isEdit = Boolean(editContext);
+  const isDuplicate = !isEdit && Boolean(duplicateContext);
+  const navigate = useNavigate();
+  const [form, setForm] = useState(() =>
+    isEdit ? editContext.initialForm : isDuplicate ? duplicateContext.initialForm : INITIAL_FORM
+  );
+  // [{ file, previewUrl }] (gambar baharu) atau [{ existingIndex, previewUrl }]
+  // (gambar versi aktif - Edit sahaja). previewUrl ialah data: URI (bukan blob:)
+  // Duplicate: 4 slot kosong - gambar sumber TIDAK digunakan semula.
+  const [images, setImages] = useState(() =>
+    isEdit ? editContext.initialImages : isDuplicate ? Array.from({ length: REQUIRED_IMAGES }, () => ({ empty: true })) : []
+  );
+  const [dateConfirmed, setDateConfirmed] = useState(false); // Duplicate: pengesahan tarikh baharu
+  // Kemas Kini 3 (pembetulan akhir): tiket sumber semasa, notis ralat Duplicate
+  // yang boleh dipulihkan, dan pilihan eksplisit "jana tanpa jejak sumber"
+  // (hanya selepas sumber disahkan telah dipadam).
+  const [dupTicket, setDupTicket] = useState(() => (isDuplicate ? duplicateContext.ticket : null));
+  const [dupNotice, setDupNotice] = useState(null); // { kind: 'retry'|'used'|'source_missing', message, existingId }
+  const [detachedFromSource, setDetachedFromSource] = useState(false);
+  // Edit sahaja: gambar yang dibuang meninggalkan slot kosong ({ empty: true })
+  // supaya gambar pengganti mengambil KEDUDUKAN yang sama dalam PDF. Dalam
+  // Buat OPR tiada slot kosong - tingkah laku asal (buang = anjak) kekal.
+  const filledImages = images.filter((img) => !img.empty);
   const [previewFailed, setPreviewFailed] = useState(() => new Set()); // index yang gagal decode selepas load (jarang berlaku)
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  // Kemas Kini 2: pengawal SEGERAK - state `submitting` hanya dikemas kini
+  // selepas render, jadi klik/enter berturut-turut dalam tick yang sama masih
+  // boleh menghantar berulang. Ref ditetapkan serta-merta.
+  const submittingRef = useRef(false);
   const [record, setRecord] = useState(null); // { id, program_name, program_date, prepared_by, view_url }
-  const [sessions, setSessions] = useState(initialSessions); // Tarikh Berasingan (2-5)
-  const [infoList, setInfoList] = useState([]); // LAIN-LAIN (NYATAKAN): 0-3 set { id, title, content }
+  const [sessions, setSessions] = useState(() =>
+    isEdit ? editContext.initialSessions : isDuplicate ? duplicateContext.initialSessions : initialSessions()
+  ); // Tarikh Berasingan (2-5)
+  const [infoList, setInfoList] = useState(() =>
+    isEdit ? editContext.initialInfo : isDuplicate ? duplicateContext.initialInfo : []
+  ); // LAIN-LAIN (NYATAKAN): 0-3 set { id, title, content }
+  const [lockedMessage, setLockedMessage] = useState(''); // Edit: tempoh tamat semasa borang dibuka
+  const [linkCopied, setLinkCopied] = useState(false);
   const [infoErrors, setInfoErrors] = useState({}); // ralat ikut id set
+  // Kemas Kini 5: pilihan reka bentuk. Buat OPR = Random (lalai);
+  // Edit = design versi aktif; Duplicate = design versi aktif sumber.
+  const [designChoice, setDesignChoice] = useState(() => {
+    const preset = isEdit ? editContext.designId : isDuplicate ? duplicateContext.designId : null;
+    if (DESIGN_IDS.includes(preset)) return preset;
+    return isEdit || isDuplicate ? 'original' : RANDOM_DESIGN;
+  });
 
   const updateInfo = (id, field) => (event) => {
     const { value } = event.target;
@@ -266,7 +316,7 @@ export default function BuatOPR() {
     const selected = Array.from(event.target.files || []);
     event.target.value = ''; // benarkan pilih fail sama semula selepas dibuang
 
-    const room = REQUIRED_IMAGES - images.length;
+    const room = REQUIRED_IMAGES - filledImages.length;
     const toRead = [];
     let imageError;
 
@@ -299,12 +349,29 @@ export default function BuatOPR() {
           }
         })
       );
-      setImages((prev) => [...prev, ...results]);
+      setImages((prev) => {
+        // Isi slot kosong (Edit) dahulu mengikut susunan, baki ditambah di hujung.
+        const next = [...prev];
+        const queue = [...results];
+        for (let i = 0; i < next.length && queue.length > 0; i += 1) {
+          if (next[i].empty) next[i] = queue.shift();
+        }
+        return [...next, ...queue];
+      });
     }
     setErrors((prev) => ({ ...prev, images: imageError }));
   };
 
   const removeImage = (index) => {
+    if (isEdit || isDuplicate) {
+      setImages((prev) => prev.map((img, i) => (i === index ? { empty: true } : img)));
+      setPreviewFailed((prev) => {
+        const next = new Set(prev);
+        next.delete(index);
+        return next;
+      });
+      return;
+    }
     setImages((prev) => {
       const next = [...prev];
       next.splice(index, 1);
@@ -332,12 +399,32 @@ export default function BuatOPR() {
     setSessions(initialSessions());
     setInfoList([]);
     setInfoErrors({});
+    setDesignChoice(RANDOM_DESIGN);
+  };
+
+  // Kemas Kini 3: tiket boleh digunakan jika ada & belum hampir tamat (15 minit,
+  // ikut jam server). Paparan/penyegaran sahaja - server tetap pengesah muktamad.
+  const ticketUsable = (ticket) => {
+    if (!ticket || !ticket.value) return false;
+    const exp = Date.parse(ticket.expiresAt);
+    return Number.isFinite(exp) && exp - (Date.now() + (ticket.serverOffsetMs || 0)) > 15 * 60 * 1000;
+  };
+
+  // Dapatkan tiket baharu daripada sumber yang SAMA (baca sahaja - medan borang tidak diubah).
+  const refreshDuplicateTicket = async () => {
+    const fresh = ticketFromSource(await api.getOprDuplicateSource(duplicateContext.sourceId));
+    setDupTicket(fresh);
+    return fresh;
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (submittingRef.current) return; // elak penghantaran berganda
 
-    const clientErrors = validateClientSide(form, images, sessions);
+    const clientErrors = validateClientSide(form, filledImages, sessions);
+    if (isDuplicate && !dateConfirmed) {
+      clientErrors.date_confirm = 'Sila sahkan tarikh dan masa program baharu sebelum menjana OPR.';
+    }
     const clientInfoErrors = validateAdditionalInfo(infoList);
     if (Object.keys(clientErrors).length > 0 || Object.keys(clientInfoErrors).length > 0) {
       setErrors(clientErrors);
@@ -345,6 +432,7 @@ export default function BuatOPR() {
       return;
     }
 
+    submittingRef.current = true;
     setSubmitting(true);
     setErrors({});
     setInfoErrors({});
@@ -386,13 +474,83 @@ export default function BuatOPR() {
           JSON.stringify(infoList.map((info) => ({ title: info.title, content: info.content })))
         );
       }
-      images.forEach(({ file }) => formData.append('images', file));
+      // Kemas Kini 5: pilihan design (Random diselesaikan oleh backend).
+      formData.append('design_choice', designChoice);
+      if (isEdit) {
+        // Kemas Kini 2: susunan gambar akhir - kekalkan gambar versi aktif
+        // ({keep}) atau fail baharu ({new}); hanya fail baharu dimuat naik.
+        let newIndex = 0;
+        const slots = filledImages.map((img) => (img.file ? { new: newIndex++ } : { keep: img.existingIndex }));
+        filledImages.forEach((img) => {
+          if (img.file) formData.append('images', img.file);
+        });
+        formData.append('image_slots', JSON.stringify(slots));
+        formData.append('base_version', String(editContext.currentVersion));
+
+        const saved = await api.submitOprEdit(editContext.id, formData, editContext.token);
+        // Paparkan PDF versi terkini melalui Universal PDF Viewer (Kemas Kini 1).
+        navigate(`/opr/${editContext.id}/lihat`, { replace: true, state: { editedVersion: saved.version } });
+        return;
+      }
+
+      filledImages.forEach(({ file }) => formData.append('images', file));
+      // Kemas Kini 3: jejak sumber dibuktikan dengan tiket bertandatangan server
+      // (bukan ID mentah). Tiket hampir tamat diperbaharui DAHULU (selamat -
+      // belum ada rekod dijana). Server menolak tiket bermasalah dengan 409;
+      // rekod Duplicate tidak pernah disimpan tanpa jejak secara senyap.
+      if (isDuplicate && !detachedFromSource) {
+        let ticket = dupTicket;
+        if (!ticketUsable(ticket)) {
+          try {
+            ticket = await refreshDuplicateTicket();
+          } catch (err) {
+            if (err.status === 404) {
+              setDupNotice({ kind: 'source_missing', message: 'Rekod sumber Duplicate tidak lagi wujud (mungkin telah dipadam). Tiada OPR dijana.' });
+            } else {
+              setErrors({ _global: 'Tidak dapat mengesahkan rekod sumber. Semak sambungan internet dan cuba lagi. Tiada OPR dijana.' });
+            }
+            return;
+          }
+        }
+        formData.append('duplicate_ticket', ticket.value);
+      }
 
       const savedRecord = await api.submitOprForm(formData);
+      // Kemas Kini 2: simpan token suntingan dalam pelayar ini (24 jam).
+      if (savedRecord.edit_token) {
+        saveEditToken(savedRecord.id, {
+          token: savedRecord.edit_token,
+          expiresAt: savedRecord.edit_expires_at,
+          serverOffsetMs: computeServerOffset(savedRecord.server_time),
+        });
+      }
       setRecord(savedRecord);
     } catch (err) {
-      setErrors(err.fieldErrors || { _global: err.message });
+      if (isDuplicate && err.code === 'duplicate_ticket_used') {
+        setDupNotice({ kind: 'used', message: err.message, existingId: err.existingId });
+      } else if (isDuplicate && (err.code === 'duplicate_ticket_expired' || err.code === 'duplicate_ticket_invalid')) {
+        try {
+          await refreshDuplicateTicket();
+          setDupNotice({ kind: 'retry', message: `${err.message} Pengesahan sumber telah diperbaharui.` });
+        } catch {
+          setErrors({ _global: `${err.message} Semak sambungan internet dan cuba lagi.` });
+        }
+      } else if (isDuplicate && err.code === 'duplicate_source_missing') {
+        setDupNotice({ kind: 'source_missing', message: err.message });
+      } else if (isDuplicate && err instanceof TypeError) {
+        // Kegagalan rangkaian: cuba semula SELAMAT - tiket yang sama akan
+        // menghasilkan 409 'telah dijana' jika permintaan pertama sempat berjaya.
+        setErrors({
+          _global:
+            'Sambungan terputus semasa menjana OPR. Anda boleh menekan Jana OPR Baharu sekali lagi dengan selamat - sistem akan memaklumkan jika OPR ini telah pun dijana.',
+        });
+      } else if (isEdit && err.code === 'locked') {
+        setLockedMessage(err.message);
+      } else {
+        setErrors(err.fieldErrors || { _global: err.message });
+      }
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -403,18 +561,86 @@ export default function BuatOPR() {
         <h1>Buat OPR</h1>
         <div className="success-panel">
           <p>OPR berjaya dijana dan disimpan.</p>
+          {record.design_id && (
+            <p className="text-muted">
+              Reka bentuk: <strong>{designLabel(record.design_id)}</strong>
+              {designChoice === RANDOM_DESIGN && ' (dipilih secara rawak)'}
+            </p>
+          )}
         </div>
 
         <div className="result-actions">
-          <a className="btn btn-primary" href={record.view_url} target="_blank" rel="noreferrer">
+          <a className="btn btn-primary" href={`/opr/${record.id}/lihat`} target="_blank" rel="noreferrer">
             Lihat OPR
           </a>
           <a className="btn btn-secondary" href={`${record.view_url}?download=1`}>
             Muat Turun PDF
           </a>
-          <button type="button" className="btn btn-secondary" onClick={resetForm}>
+          {record.edit_token && (
+            <Link className="btn btn-secondary" to={`/opr/${record.id}/edit`}>
+              Edit OPR
+            </Link>
+          )}
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={isDuplicate ? () => navigate('/buat') : resetForm}
+          >
             Buat OPR Baru
           </button>
+        </div>
+
+        {record.edit_token && (
+          <div className="edit-link-box">
+            <p>
+              <strong>Boleh diedit sehingga {formatMasa(record.edit_expires_at)}.</strong> Butang Edit tersedia di
+              pelayar ini (termasuk di halaman Rekod OPR).
+            </p>
+            <p className="text-muted">
+              Untuk mengedit dari peranti lain, simpan Pautan Edit di bawah. Sesiapa yang memiliki pautan ini boleh
+              mengedit OPR ini dalam tempoh 24 jam - jangan kongsi.
+            </p>
+            <div className="edit-link-row">
+              <input
+                type="text"
+                readOnly
+                value={buildEditLink(record.id, record.edit_token)}
+                aria-label="Pautan Edit OPR"
+                onFocus={(e) => e.target.select()}
+              />
+              <button
+                type="button"
+                className="btn btn-secondary btn-small"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(buildEditLink(record.id, record.edit_token));
+                    setLinkCopied(true);
+                  } catch {
+                    setLinkCopied(false);
+                  }
+                }}
+              >
+                {linkCopied ? 'Disalin' : 'Salin Pautan'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (isEdit && lockedMessage) {
+    return (
+      <div className="page page-narrow">
+        <h1>Edit OPR</h1>
+        <div className="opr-viewer-message opr-viewer-error" role="alert">
+          <p>{lockedMessage}</p>
+          <p className="text-muted">Pembetulan tidak disimpan. Versi semasa OPR tidak berubah.</p>
+          <div className="opr-viewer-message-actions">
+            <Link className="btn btn-primary" to={`/opr/${editContext.id}/lihat`}>
+              Lihat OPR
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -424,7 +650,42 @@ export default function BuatOPR() {
 
   return (
     <div className="page">
-      <h1>Buat OPR</h1>
+      <h1>{isEdit ? 'Edit OPR' : isDuplicate ? 'Duplicate & Edit OPR' : 'Buat OPR'}</h1>
+
+      {isDuplicate && (
+        <div className="edit-window-banner" role="status">
+          <p>
+            <strong>
+              Anda sedang menghasilkan OPR baharu berdasarkan rekod terdahulu. Rekod asal tidak akan diubah.
+            </strong>
+          </p>
+          <p className="text-muted">Sumber: {duplicateContext.sourceName}</p>
+          {duplicateContext.isLegacy && (
+            <p className="duplicate-legacy-note">
+              OPR ini merupakan rekod lama. Sebahagian maklumat tidak dapat disalin secara automatik. Sila lengkapkan
+              maklumat yang belum tersedia sebelum menjana OPR baharu.
+              {duplicateContext.missingFields.length > 0 && ` (Belum tersedia: ${duplicateContext.missingFields.join(', ')}.)`}
+            </p>
+          )}
+          {duplicateContext.scheduleReference && (
+            <p className="text-muted">
+              Tarikh &amp; masa asal (rujukan sahaja): {duplicateContext.scheduleReference}. Sila tetapkan tarikh program
+              baharu.
+            </p>
+          )}
+          <p className="text-muted">4 gambar dokumentasi baharu diperlukan - gambar OPR sumber tidak digunakan.</p>
+        </div>
+      )}
+
+      {isEdit && (
+        <div className="edit-window-banner" role="status">
+          <strong>Pembetulan Versi {editContext.currentVersion + 1}</strong> — boleh diedit sehingga{' '}
+          {formatMasa(editContext.expiresAt)}
+          {bakiMasa(editContext.expiresAt, editContext.serverOffsetMs) &&
+            ` (baki ${bakiMasa(editContext.expiresAt, editContext.serverOffsetMs)})`}
+          . Versi PDF terdahulu dikekalkan.
+        </div>
+      )}
 
       {errors._global && <p className="form-error form-error-banner">{errors._global}</p>}
 
@@ -731,12 +992,20 @@ export default function BuatOPR() {
         <div className="field">
           <span>Dokumentasi Program</span>
           <span className="field-hint">4 gambar dokumentasi diperlukan.</span>
+          {isEdit && editContext.imagesUnavailable && (
+            <span className="form-error">Gambar asal tidak tersedia. Sila muat naik 4 gambar dokumentasi.</span>
+          )}
+          {isEdit && !editContext.imagesUnavailable && (
+            <span className="field-hint">
+              Gambar asal dikekalkan. Tekan Buang pada gambar yang ingin diganti, kemudian pilih gambar baharu.
+            </span>
+          )}
           <input
             type="file"
             accept="image/jpeg,image/png,image/webp"
             multiple
             onChange={handleFileSelect}
-            disabled={images.length >= REQUIRED_IMAGES}
+            disabled={filledImages.length >= REQUIRED_IMAGES}
           />
           {errors.images && <span className="form-error">{errors.images}</span>}
 
@@ -745,7 +1014,11 @@ export default function BuatOPR() {
               <div className="thumbnail-grid">
                 {images.map((img, index) => (
                   <div className="thumbnail" key={index}>
-                    {img.previewUrl && !previewFailed.has(index) ? (
+                    {img.empty ? (
+                      <div className="thumbnail-fallback">
+                        Slot {index + 1} kosong - pilih gambar{isEdit ? ' pengganti' : ' baharu'}
+                      </div>
+                    ) : img.previewUrl && !previewFailed.has(index) ? (
                       <img
                         src={img.previewUrl}
                         alt={`Dokumentasi ${index + 1}`}
@@ -754,14 +1027,16 @@ export default function BuatOPR() {
                     ) : (
                       <div className="thumbnail-fallback">Preview tidak tersedia</div>
                     )}
-                    <button type="button" onClick={() => removeImage(index)}>
-                      Buang
-                    </button>
+                    {!img.empty && (
+                      <button type="button" onClick={() => removeImage(index)}>
+                        Buang
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
               <span className="image-count">
-                {images.length} daripada {REQUIRED_IMAGES} gambar dipilih
+                {filledImages.length} daripada {REQUIRED_IMAGES} gambar dipilih
               </span>
             </>
           )}
@@ -807,12 +1082,92 @@ export default function BuatOPR() {
           <CharCounter value={form.verified_by_position} limit={LIMITS.verified_by_position} />
         </Field>
 
+        <DesignPicker
+          value={designChoice}
+          onChange={(next) => {
+            setDesignChoice(next);
+            setErrors((prev) => ({ ...prev, design: undefined }));
+          }}
+          allowRandom={!isEdit}
+          error={errors.design}
+        />
+
         {/* Ralat umum (cth. OPR melebihi satu halaman) turut dipapar dekat butang
             supaya guru nampak tanpa perlu skrol ke atas. */}
         {errors._global && <p className="form-error">{errors._global}</p>}
 
+        {isDuplicate && dupNotice && (
+          <div className="opr-viewer-message opr-viewer-error duplicate-notice" role="alert">
+            <p>{dupNotice.message}</p>
+            {dupNotice.kind === 'retry' && <p className="text-muted">Semak borang dan tekan Jana OPR Baharu sekali lagi.</p>}
+            <div className="opr-viewer-message-actions">
+              {dupNotice.kind === 'used' && dupNotice.existingId && (
+                <Link className="btn btn-primary" to={`/opr/${dupNotice.existingId}/lihat`}>
+                  Lihat OPR #{dupNotice.existingId}
+                </Link>
+              )}
+              {dupNotice.kind === 'used' && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={async () => {
+                    try {
+                      await refreshDuplicateTicket();
+                      setDupNotice({ kind: 'retry', message: 'Pengesahan sumber baharu diperoleh untuk satu lagi OPR baharu.' });
+                    } catch {
+                      setErrors({ _global: 'Tidak dapat mengesahkan rekod sumber. Cuba lagi.' });
+                    }
+                  }}
+                >
+                  Jana Satu Lagi OPR Baharu
+                </button>
+              )}
+              {dupNotice.kind === 'source_missing' && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setDetachedFromSource(true);
+                    setDupNotice(null);
+                  }}
+                >
+                  Teruskan sebagai OPR Biasa (tanpa jejak sumber)
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+        {isDuplicate && detachedFromSource && (
+          <p className="text-muted" role="status">
+            Rekod sumber tidak lagi wujud. OPR ini akan dijana sebagai OPR biasa tanpa jejak sumber Duplicate.
+          </p>
+        )}
+
+        {isDuplicate && (
+          <label className="duplicate-confirm">
+            <input
+              type="checkbox"
+              checked={dateConfirmed}
+              onChange={(e) => {
+                setDateConfirmed(e.target.checked);
+                setErrors((prev) => ({ ...prev, date_confirm: undefined }));
+              }}
+            />
+            <span>Saya telah menetapkan dan mengesahkan tarikh serta masa program baharu.</span>
+          </label>
+        )}
+        {errors.date_confirm && <p className="form-error">{errors.date_confirm}</p>}
+
         <button type="submit" className="btn btn-primary btn-large" disabled={submitting}>
-          {submitting ? 'Sedang menjana OPR...' : 'Jana OPR'}
+          {isEdit
+            ? submitting
+              ? 'Sedang menyimpan pembetulan...'
+              : 'Simpan Pembetulan & Jana PDF'
+            : submitting
+              ? 'Sedang menjana OPR...'
+              : isDuplicate
+                ? 'Jana OPR Baharu'
+                : 'Jana OPR'}
         </button>
       </form>
     </div>

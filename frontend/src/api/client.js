@@ -73,6 +73,10 @@ async function submitOprForm(formData) {
     if (data && data.errors) {
       err.fieldErrors = data.errors;
     }
+    // Kemas Kini 3: kod ralat Duplicate (409) - tambahan sahaja, CREATE biasa tidak terjejas.
+    err.status = res.status;
+    if (data && data.code) err.code = data.code;
+    if (data && data.existing_id) err.existingId = data.existing_id;
     throw err;
   }
 
@@ -86,10 +90,11 @@ async function recentOpr(signal) {
 }
 
 // year/organizer optional ('' atau undefined = "Semua", tiada filter).
-async function searchOpr({ q = '', year = '', organizer = '', page = 1 } = {}, signal) {
+async function searchOpr({ q = '', year = '', organizer = '', page = 1, sort = '' } = {}, signal) {
   const params = new URLSearchParams({ q, page: String(page) });
   if (year) params.set('year', String(year));
   if (organizer) params.set('organizer', organizer);
+  if (sort) params.set('sort', sort); // Kemas Kini 4: 'newest' (lalai) | 'oldest' - ikut tarikh janaan
   const res = await fetch(`${BASE}/opr/search?${params}`, { credentials: 'include', signal });
   if (!res.ok) {
     const data = await res.json().catch(() => null);
@@ -126,6 +131,57 @@ async function deleteOpr(id) {
   return data;
 }
 
+// ===================== Kemas Kini 2: Edit OPR 24 jam =====================
+// Token suntingan dihantar melalui header (bukan URL) - tidak masuk log
+// akses server. Admin pula menggunakan cookie sesi sedia ada.
+function editHeaders(token) {
+  return token ? { 'X-OPR-Edit-Token': token } : {};
+}
+
+async function parseEditResponse(res, fallback) {
+  let data = null;
+  try {
+    data = await res.json();
+  } catch {
+    // tiada body
+  }
+  if (!res.ok) {
+    const err = new Error((data && (data.message || data.error)) || fallback);
+    err.status = res.status;
+    err.code = data && data.code;
+    if (data && data.errors) err.fieldErrors = data.errors;
+    throw err;
+  }
+  return data;
+}
+
+async function getOprEditData(id, token) {
+  const res = await fetch(`${BASE}/opr/${id}/edit`, { credentials: 'include', headers: editHeaders(token) });
+  return parseEditResponse(res, 'Borang Edit tidak dapat dimuatkan. Sila cuba lagi.');
+}
+
+async function submitOprEdit(id, formData, token) {
+  const res = await fetch(`${BASE}/opr/${id}`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: editHeaders(token),
+    body: formData,
+  });
+  const data = await parseEditResponse(res, 'Ralat tidak dijangka. Sila cuba lagi.');
+  return data.record;
+}
+
+async function getOprVersions(id, token) {
+  const res = await fetch(`${BASE}/opr/${id}/versions`, { credentials: 'include', headers: editHeaders(token) });
+  return parseEditResponse(res, 'Sejarah versi tidak dapat dimuatkan.');
+}
+
+// Kemas Kini 3: data sumber Duplicate & Edit (baca sahaja, medan whitelist).
+async function getOprDuplicateSource(id) {
+  const res = await fetch(`${BASE}/opr/${id}/duplicate-source`, { credentials: 'include' });
+  return parseEditResponse(res, 'Rekod sumber tidak dapat dimuatkan. Sila cuba lagi.');
+}
+
 export const api = {
   get: (path) => request(path),
   post: (path, body) => request(path, { method: 'POST', body: JSON.stringify(body) }),
@@ -136,4 +192,8 @@ export const api = {
   getOprYears,
   getOprById,
   deleteOpr,
+  getOprEditData,
+  submitOprEdit,
+  getOprVersions,
+  getOprDuplicateSource,
 };

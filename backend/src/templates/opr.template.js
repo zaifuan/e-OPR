@@ -3,6 +3,7 @@ const path = require('path');
 const Handlebars = require('handlebars');
 const { buildImageGridHtml } = require('./imageGrid');
 const { resolveTheme, NEUTRAL } = require('./theme');
+const { applyDesign } = require('./design-css');
 const {
   formatJulatMasaMelayu,
   formatTarikhInfo,
@@ -60,7 +61,11 @@ function buildScheduleView(clean) {
   };
 }
 
-function renderOprHtml(clean, imageDataUris) {
+// Kemas Kini 5: designId ('original' | 'corporate' | 'nature' | 'royal').
+// Template SATU sahaja; design selain original = lapisan CSS warna & corak
+// (design-css.js) disuntik ke <head> - tiada perubahan struktur/geometri.
+// 'original' -> HTML dipulangkan TEPAT seperti sebelum KK5.
+function renderOprHtml(clean, imageDataUris, designId = 'original') {
   const scheduleView = buildScheduleView(clean);
   const data = {
     schoolName: SCHOOL_NAME,
@@ -92,7 +97,7 @@ function renderOprHtml(clean, imageDataUris) {
     imageGridHtml: buildImageGridHtml(imageDataUris),
   };
 
-  return compiledTemplate(data);
+  return applyDesign(compiledTemplate(data), designId);
 }
 
 module.exports = { renderOprHtml };
